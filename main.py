@@ -40,18 +40,6 @@ def read_upload(raw_file):
     return pd.DataFrame()
 
 
-def read_sample():
-    """사이드바에서 '예제 데이터'를 선택했을 때 사용할 샘플 데이터"""
-    # 밑에 하드코딩된 문자열을 실제 CSV 내용으로 바꿔도 됩니다.
-    env_raw = "time,temperature,humidity,co2\n2026-07-30 17:00:00,25.1,62.3,\n2026-07-31 17:00:00,25.4,63.1,\n"
-    growth_raw = "개체번호,잎 수(장),지상부 길이(mm),지하부 길이(mm),지상부 질량(g),지하부 질량(g)\n1,30,120,45,10.2,2.1\n2,34,125,42,11.0,2.3\n"
-    growth_raw2 = "개체번호,잎 수(장),지상부 길이(mm),지하부길이(mm),생중량(g),비고\nA1,28,115,50,12.5,\nA2,31,118,48,13.1,\n"
-    env_df = std_cols(pd.read_csv(io.StringIO(env_raw), dtype=str))
-    growth_df = std_cols(pd.read_csv(io.StringIO(growth_raw), dtype=str))
-    growth_df2 = std_cols(pd.read_csv(io.StringIO(growth_raw2), dtype=str))
-    return env_df, growth_df, growth_df2
-
-
 def std_cols(df):
     df = df.copy()
     df.columns = [str(c).strip() for c in df.columns]
@@ -110,19 +98,10 @@ def std_cols(df):
     return df
 
 
-# ---------- 미리 만든 샘플 데이터를 파일로 제공 (Streamlit Cloud용) ----------
-@st.cache_data
-def sample_file_bytes():
-    env_df, growth_df, growth_df2 = read_sample()
-    env_bytes = env_df.to_csv(index=False).encode("utf-8-sig")
-    growth_bytes = growth_df.to_csv(index=False).encode("utf-8-sig")
-    growth_bytes2 = growth_df2.to_csv(index=False).encode("utf-8-sig")
-    return env_bytes, growth_bytes, growth_bytes2
-
-
 # ---------- 사이드바 ----------
 st.title("토양재배와 수경재배 환경이 극지식물의 생육 특성에 미치는 영향은 무엇일까?")
 
+st.sidebar.markdown("### 업로드할 데이터 선택")
 env_raw = st.sidebar.file_uploader("환경 CSV", type="csv")
 growth_raw = st.sidebar.file_uploader("생육 CSV", type="csv")
 
@@ -140,26 +119,43 @@ for f in (env_raw, growth_raw):
             school_name = base
 
 st.sidebar.caption(f"학교명: {school_name}")
-
-use_sample = st.sidebar.checkbox(
-    "예제 데이터로 미리 보기",
-    value=True,
-    help="CSV를 업로드하지 않아도 보고서 예제를 바로 볼 수 있습니다.",
+st.sidebar.info(
+    "예제 데이터를 바로 보려면 아래 '예제 데이터 불러오기'를 눌러 주세요. "
+    "직접 업로드한 CSV가 있으면 업로드 파일이 우선 사용됩니다."
 )
+
+use_sample = st.sidebar.checkbox("예제 데이터 불러오기", value=False)
 
 if use_sample:
     with st.spinner("예제 데이터를 불러오는 중..."):
-        env_bytes, growth_bytes, growth_bytes2 = sample_file_bytes()
-        env_df = std_cols(pd.read_csv(io.BytesIO(env_bytes), dtype=str))
-        growth_df = std_cols(pd.read_csv(io.BytesIO(growth_bytes), dtype=str))
-        growth_df2 = std_cols(pd.read_csv(io.BytesIO(growth_bytes2), dtype=str))
+        env_df = std_cols(
+            pd.read_csv(
+                "/home/user/uploads/0___________.csv.csv",
+                encoding="utf-8-sig",
+                dtype=str,
+            )
+        )
+        growth_df = std_cols(
+            pd.read_csv(
+                "/home/user/uploads/1_____________.csv.csv",
+                encoding="utf-8-sig",
+                dtype=str,
+            )
+        )
+        growth_df2 = std_cols(
+            pd.read_csv(
+                "/home/user/uploads/2____________.csv",
+                encoding="utf-8-sig",
+                dtype=str,
+            )
+        )
 else:
     with st.spinner("데이터 로딩 중..."):
         env_df = read_upload(env_raw)
         growth_df = read_upload(growth_raw)
         growth_df2 = None
 
-# 생육 데이터 2개가 모두 있을 때는 하나로 합침
+# 생육 데이터 2개가 모두 있을 때는 합쳐서 하나로 사용
 if growth_df is not None and growth_df2 is not None and not growth_df.empty and not growth_df2.empty:
     growth_all = pd.concat([growth_df, growth_df2], ignore_index=True)
 elif growth_df is not None and not growth_df.empty:
@@ -307,22 +303,14 @@ with tabs[0]:
 온도와 습도 같은 환경 조건이 생육 특성(잎 수, 지상부 길이, 지하부 길이, 생중량)에
 어떤 차이를 만드는지 비교하는 탐구입니다.
 
-이 탐구에서는 아래 데이터를 함께 사용합니다.
+이 대시보드에는 아래 데이터가 포함되어 있습니다.
 """
         )
         info_rows = []
-        info_rows.append(
-            ["강화여고 환경 데이터", f"{len(env_df) if env_df is not None and not env_df.empty else 0}개 시점"]
-        )
-        info_rows.append(
-            ["강화여고 생육 데이터", f"{len(growth_df) if growth_df is not None and not growth_df.empty else 0}개체"]
-        )
-        info_rows.append(
-            ["강화중 생육 데이터", f"{len(growth_df2) if growth_df2 is not None and not growth_df2.empty else 0}개체"]
-        )
-        info_rows.append(
-            ["통합 생육 데이터", f"{len(growth_all) if growth_all is not None and not growth_all.empty else 0}개체"]
-        )
+        info_rows.append(["강화여고 환경 데이터", f"{len(env_df) if env_df is not None and not env_df.empty else 0}개 시점"])
+        info_rows.append(["강화여고 생육 데이터", f"{len(growth_df) if growth_df is not None and not growth_df.empty else 0}개체"])
+        info_rows.append(["강화중 생육 데이터", f"{len(growth_df2) if growth_df2 is not None and not growth_df2.empty else 0}개체"])
+        info_rows.append(["통합 생육 데이터", f"{len(growth_all) if growth_all is not None and not growth_all.empty else 0}개체"])
         st.table(pd.DataFrame(info_rows, columns=["데이터", "규모"]))
 
         st.markdown("## 연구 가설")
@@ -348,18 +336,6 @@ with tabs[0]:
             st.markdown(f"### {title}")
             st.write(body)
 
-        st.markdown("## 기대되는 결과 해석")
-        st.write(
-            """
-- 온도와 광조건이 제어된 환경에서는 잎 수가 더 많아질 가능성이 있습니다.
-- 상대습도가 높은 환경에서는 지하부 길이가 짧아질 수 있고,
-  상대습도가 낮은 환경에서는 지하부 길이가 길어질 수 있습니다.
-- 상대습도가 낮은 환경에서는 잎이 두껍고 조밀하게 형성될 수 있습니다.
-
-**유의미한 차이**는 우연이라고 보기 어려울 정도로 차이나 관계가 뚜렷한 상태를 뜻합니다.
-"""
-        )
-
         st.markdown("### 통계 용어 안내")
         st.write(
             """
@@ -367,8 +343,8 @@ with tabs[0]:
 - **표준편차**: 값들이 평균 주변에 얼마나 퍼져 있는지 나타내는 값
 - **CV(변동계수)**: 표준편차를 평균으로 나눈 값, 서로 다른 규모의 비교에 사용
 - **상관계수**: 두 변수가 함께 움직이는 정도(−1 ~ 1), 0에 가까우면 관계가 약함
+- **유의미하다**: 우연이라고 보기 어려울 정도로 차이나 관계가 뚜렷한 상태
 - **증산 작용**: 식물 잎의 기공으로 수분이 증발하는 현상
-- **형태적 구조**: 잎의 두께, 면적, 모양 같은 겉으로 보이는 구조
 """
         )
     except Exception as e:
@@ -552,7 +528,7 @@ with tabs[1]:
                 else:
                     st.info(f"{xcol} vs {ycol} 산점도를 그릴 데이터가 부족합니다.")
 
-        # --- 재배 방식별 생육 비교 (데이터에 방식 열이 있을 때) ---
+        # --- 토양·수경재배 비교용: 재배 방식 구분 열이 있으면 그룹별 요약 ---
         st.markdown("## 재배 방식별 생육 비교 (데이터에 방식 열이 있을 때)")
         if growth_all is None or growth_all.empty:
             st.info("생육 데이터가 있어야 이 비교를 할 수 있습니다.")

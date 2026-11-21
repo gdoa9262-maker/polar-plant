@@ -124,7 +124,7 @@ st.sidebar.info(
     "직접 업로드한 CSV가 있으면 업로드 파일이 우선 사용됩니다."
 )
 
-use_sample = st.sidebar.checkbox("예제 데이터 불러오기", value=False)
+use_sample = st.sidebar.checkbox("예제 데이터 불러오기", value=True)
 
 if use_sample:
     with st.spinner("예제 데이터를 불러오는 중..."):
@@ -155,7 +155,7 @@ else:
         growth_df = read_upload(growth_raw)
         growth_df2 = None
 
-# 생육 데이터 2개가 모두 있을 때는 합쳐서 하나로 사용
+# 생육 데이터 2개가 모두 있을 때는 하나로 합침
 if growth_df is not None and growth_df2 is not None and not growth_df.empty and not growth_df2.empty:
     growth_all = pd.concat([growth_df, growth_df2], ignore_index=True)
 elif growth_df is not None and not growth_df.empty:
@@ -303,14 +303,22 @@ with tabs[0]:
 온도와 습도 같은 환경 조건이 생육 특성(잎 수, 지상부 길이, 지하부 길이, 생중량)에
 어떤 차이를 만드는지 비교하는 탐구입니다.
 
-이 대시보드에는 아래 데이터가 포함되어 있습니다.
+이 탐구에서는 아래 데이터를 함께 사용합니다.
 """
         )
         info_rows = []
-        info_rows.append(["강화여고 환경 데이터", f"{len(env_df) if env_df is not None and not env_df.empty else 0}개 시점"])
-        info_rows.append(["강화여고 생육 데이터", f"{len(growth_df) if growth_df is not None and not growth_df.empty else 0}개체"])
-        info_rows.append(["강화중 생육 데이터", f"{len(growth_df2) if growth_df2 is not None and not growth_df2.empty else 0}개체"])
-        info_rows.append(["통합 생육 데이터", f"{len(growth_all) if growth_all is not None and not growth_all.empty else 0}개체"])
+        info_rows.append(
+            ["강화여고 환경 데이터", f"{len(env_df) if env_df is not None and not env_df.empty else 0}개 시점"]
+        )
+        info_rows.append(
+            ["강화여고 생육 데이터", f"{len(growth_df) if growth_df is not None and not growth_df.empty else 0}개체"]
+        )
+        info_rows.append(
+            ["강화중 생육 데이터", f"{len(growth_df2) if growth_df2 is not None and not growth_df2.empty else 0}개체"]
+        )
+        info_rows.append(
+            ["통합 생육 데이터", f"{len(growth_all) if growth_all is not None and not growth_all.empty else 0}개체"]
+        )
         st.table(pd.DataFrame(info_rows, columns=["데이터", "규모"]))
 
         st.markdown("## 연구 가설")
@@ -336,6 +344,18 @@ with tabs[0]:
             st.markdown(f"### {title}")
             st.write(body)
 
+        st.markdown("## 기대되는 결과 해석")
+        st.write(
+            """
+- 온도와 광조건이 제어된 환경에서는 잎 수가 더 많아질 가능성이 있습니다.
+- 상대습도가 높은 환경에서는 지하부 길이가 짧아질 수 있고,
+  상대습도가 낮은 환경에서는 지하부 길이가 길어질 수 있습니다.
+- 상대습도가 낮은 환경에서는 잎이 두껍고 조밀하게 형성될 수 있습니다.
+
+**유의미한 차이**는 우연이라고 보기 어려울 정도로 차이나 관계가 뚜렷한 상태를 뜻합니다.
+"""
+        )
+
         st.markdown("### 통계 용어 안내")
         st.write(
             """
@@ -343,8 +363,8 @@ with tabs[0]:
 - **표준편차**: 값들이 평균 주변에 얼마나 퍼져 있는지 나타내는 값
 - **CV(변동계수)**: 표준편차를 평균으로 나눈 값, 서로 다른 규모의 비교에 사용
 - **상관계수**: 두 변수가 함께 움직이는 정도(−1 ~ 1), 0에 가까우면 관계가 약함
-- **유의미하다**: 우연이라고 보기 어려울 정도로 차이나 관계가 뚜렷한 상태
 - **증산 작용**: 식물 잎의 기공으로 수분이 증발하는 현상
+- **형태적 구조**: 잎의 두께, 면적, 모양 같은 겉으로 보이는 구조
 """
         )
     except Exception as e:
@@ -528,7 +548,7 @@ with tabs[1]:
                 else:
                     st.info(f"{xcol} vs {ycol} 산점도를 그릴 데이터가 부족합니다.")
 
-        # --- 토양·수경재배 비교용: 재배 방식 구분 열이 있으면 그룹별 요약 ---
+        # --- 재배 방식별 생육 비교 (데이터에 방식 열이 있을 때) ---
         st.markdown("## 재배 방식별 생육 비교 (데이터에 방식 열이 있을 때)")
         if growth_all is None or growth_all.empty:
             st.info("생육 데이터가 있어야 이 비교를 할 수 있습니다.")

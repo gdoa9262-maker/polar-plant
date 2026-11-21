@@ -40,6 +40,18 @@ def read_upload(raw_file):
     return pd.DataFrame()
 
 
+def read_sample():
+    """사이드바에서 '예제 데이터'를 선택했을 때 사용할 샘플 데이터"""
+    # 밑에 하드코딩된 문자열을 실제 CSV 내용으로 바꿔도 됩니다.
+    env_raw = "time,temperature,humidity,co2\n2026-07-30 17:00:00,25.1,62.3,\n2026-07-31 17:00:00,25.4,63.1,\n"
+    growth_raw = "개체번호,잎 수(장),지상부 길이(mm),지하부 길이(mm),지상부 질량(g),지하부 질량(g)\n1,30,120,45,10.2,2.1\n2,34,125,42,11.0,2.3\n"
+    growth_raw2 = "개체번호,잎 수(장),지상부 길이(mm),지하부길이(mm),생중량(g),비고\nA1,28,115,50,12.5,\nA2,31,118,48,13.1,\n"
+    env_df = std_cols(pd.read_csv(io.StringIO(env_raw), dtype=str))
+    growth_df = std_cols(pd.read_csv(io.StringIO(growth_raw), dtype=str))
+    growth_df2 = std_cols(pd.read_csv(io.StringIO(growth_raw2), dtype=str))
+    return env_df, growth_df, growth_df2
+
+
 def std_cols(df):
     df = df.copy()
     df.columns = [str(c).strip() for c in df.columns]
@@ -98,10 +110,19 @@ def std_cols(df):
     return df
 
 
+# ---------- 미리 만든 샘플 데이터를 파일로 제공 (Streamlit Cloud용) ----------
+@st.cache_data
+def sample_file_bytes():
+    env_df, growth_df, growth_df2 = read_sample()
+    env_bytes = env_df.to_csv(index=False).encode("utf-8-sig")
+    growth_bytes = growth_df.to_csv(index=False).encode("utf-8-sig")
+    growth_bytes2 = growth_df2.to_csv(index=False).encode("utf-8-sig")
+    return env_bytes, growth_bytes, growth_bytes2
+
+
 # ---------- 사이드바 ----------
 st.title("토양재배와 수경재배 환경이 극지식물의 생육 특성에 미치는 영향은 무엇일까?")
 
-st.sidebar.markdown("### 업로드할 데이터 선택")
 env_raw = st.sidebar.file_uploader("환경 CSV", type="csv")
 growth_raw = st.sidebar.file_uploader("생육 CSV", type="csv")
 
@@ -119,36 +140,19 @@ for f in (env_raw, growth_raw):
             school_name = base
 
 st.sidebar.caption(f"학교명: {school_name}")
-st.sidebar.info(
-    "예제 데이터를 바로 보려면 아래 '예제 데이터 불러오기'를 눌러 주세요. "
-    "직접 업로드한 CSV가 있으면 업로드 파일이 우선 사용됩니다."
-)
 
-use_sample = st.sidebar.checkbox("예제 데이터 불러오기", value=True)
+use_sample = st.sidebar.checkbox(
+    "예제 데이터로 미리 보기",
+    value=True,
+    help="CSV를 업로드하지 않아도 보고서 예제를 바로 볼 수 있습니다.",
+)
 
 if use_sample:
     with st.spinner("예제 데이터를 불러오는 중..."):
-        env_df = std_cols(
-            pd.read_csv(
-                "/home/user/uploads/0___________.csv.csv",
-                encoding="utf-8-sig",
-                dtype=str,
-            )
-        )
-        growth_df = std_cols(
-            pd.read_csv(
-                "/home/user/uploads/1_____________.csv.csv",
-                encoding="utf-8-sig",
-                dtype=str,
-            )
-        )
-        growth_df2 = std_cols(
-            pd.read_csv(
-                "/home/user/uploads/2____________.csv",
-                encoding="utf-8-sig",
-                dtype=str,
-            )
-        )
+        env_bytes, growth_bytes, growth_bytes2 = sample_file_bytes()
+        env_df = std_cols(pd.read_csv(io.BytesIO(env_bytes), dtype=str))
+        growth_df = std_cols(pd.read_csv(io.BytesIO(growth_bytes), dtype=str))
+        growth_df2 = std_cols(pd.read_csv(io.BytesIO(growth_bytes2), dtype=str))
 else:
     with st.spinner("데이터 로딩 중..."):
         env_df = read_upload(env_raw)
